@@ -24,7 +24,7 @@ from bs4 import BeautifulSoup as bs
 dat = glob.glob(path)
 
 
-for p in dat:
+for p in sorted(dat):
     text = ""
     with open(p, "r") as f:
         for i in f:
@@ -33,11 +33,20 @@ for p in dat:
 
     out = soup.find_all(no="01a")
 
+    oms_count = 0
+    add_count = 0
+    msf_count = 0
+
     for i in out:
         oms = i.find_all("oms")
         add = i.find_all("add")
         msf = i.find_all("msf")
 
-        print(oms)
-        print(add)
-        print(msf)
+        oms_count += len(oms)
+        add_count += len(add)
+        msf_count += len(msf)
+
+    print(p)
+    print(oms_count)
+    print(add_count)
+    print(msf_count)
