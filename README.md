@@ -23,7 +23,7 @@
 
 `python run.py -m train -o test.pkl`
 
-=> run.py と同じディレクトリにhoge.pklが生成される
+=> run.py と同じディレクトリにtest.pklが生成される
 
 ※ 注意：今は全データを学習に回しているのでほんとはtrain/dev/testに回したほうが良いと思う
 
