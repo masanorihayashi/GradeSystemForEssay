@@ -1,4 +1,4 @@
 # GradeSystemForEssay
 
-# sample
+# データについて
 
