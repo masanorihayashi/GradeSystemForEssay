@@ -15,5 +15,21 @@
 
 - 当面それ以外は不要と思われる（もし何か追加で必要なら教えて下さい）
 
+# プログラムの動かし方
+
+0. (仮想環境かなにかでpip install -r requirements.txt)
+
+1. 学習時
+
+`python run.py -m train -o test.pkl`
+
+=> run.py と同じディレクトリにhoge.pklが生成される
+
+※ 注意：今は全データを学習に回しているのでほんとはtrain/dev/testに回したほうが良いと思う
 
 
+2. テスト時
+
+`python run.py -m test -i hoge.dat`
+
+=> run.pyと同じディレクトリにtest.pklが置いてあると動くはず，test.datは適当なエッセイなりのテキストファイル
