@@ -26,6 +26,6 @@ srsly==1.0.1
 thinc==7.3.1
 tqdm==4.42.1
 treetaggerwrapper==2.3
-urllib3==1.25.8
+urllib3==1.26.5
 wasabi==0.6.0
 zipp==2.1.0
