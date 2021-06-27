@@ -4,6 +4,8 @@ from __future__ import print_function
 
 import os
 import re
+import random
+import pickle
 import argparse
 import numpy as np
 from sklearn.externals import joblib
@@ -18,10 +20,10 @@ from collections import Counter
 from collections import OrderedDict
 from sklearn.externals import joblib
 
-a1 = "dat/a1.word"
-a2 = "dat/a2.word"
-b1 = "dat/b1.word"
-fun = "dat/func.word"
+a1 = "../dat/a1.word"
+a2 = "../dat/a2.word"
+b1 = "../dat/b1.word"
+fun = "../dat/func.word"
 
 a1_words = []
 a2_words = []
@@ -61,7 +63,9 @@ class Surface:
 
     def ngram(self):
         all_ngram = []
-        for num in [1, 2, 3]:
+        xx = 1
+        #for num in [1, 2, 3]:
+        for num in [1, 2]:
             _ngrams = [list(zip(*(sentence.split()[i:] for i in range(num)))) for sentence in self.prop_sentences]
             ngrams = [flat for inner in _ngrams for flat in inner]
             all_ngram.extend(set(ngrams))
@@ -70,7 +74,8 @@ class Surface:
                 if v < 5:
                     pass
                 else:
-                    print(k, v, sep='\t')
+                    print(xx, k, v, sep='\t')
+                    xx += 1
             ''' 
         return Counter(all_ngram)
 
@@ -97,7 +102,7 @@ class Surface:
 grmlist = []
 num_grm_dic = {}
 num_list_dic = {}
-with open('dat/grmitem.txt', 'r') as f:
+with open('../dat/grmitem.txt', 'r') as f:
     for num, i in enumerate(f, 1):
         grmlist.append(i.rstrip().split('\t')[1])
         num_grm_dic[num] = i.rstrip().split('\t')[1]
@@ -141,16 +146,20 @@ class GrmItem:
             _tmp = []
 
         all_pos_ngrams = []
-        for num in [1, 2, 3]:
+        xx = 1
+        #for num in [1, 2, 3]:
+        for num in [1, 2]:
             _pos_ngrams = [list(zip(*(sentence.split()[i:] for i in range(num)))) for sentence in pos_list]
             pos_ngrams = [flat for inner in _pos_ngrams for flat in inner]
             all_pos_ngrams.extend(pos_ngrams)
             '''
+
             for k,v in sorted(Counter(pos_ngrams).items(), key=lambda x: -x[1]):
                 if v < 5:
                     pass
                 else:
-                    print(k, v, sep='\t')
+                    print(xx, k, v, sep='\t')
+                    xx += 1
             '''
 
         return Counter(all_pos_ngrams)
@@ -174,9 +183,9 @@ class Feature:
         self.stats = stats
         self.word_dic = {}
         self.pos_dic = {}
-        for line in open("dat/word.dat", "r"):
+        for line in open("../dat/word_essay.dat", "r"):
             self.word_dic[line.split('\t')[1]] = line.split('\t')[0]
-        for line in open("dat/pos.dat", "r"):
+        for line in open("../dat/pos_essay.dat", "r"):
             self.pos_dic[line.split('\t')[1]]  = line.split('\t')[0]
 
     def ngram2vec(self):
@@ -227,26 +236,74 @@ def output(grade, stats, word_diff, grmitem):
 
     return output_dic
 
-def main():
+def main(args):
 
-    data = ''
-    with open(args.input,'r') as f:
-        for i in f:
-            data += i.rstrip() + ' '
+    if args.MODE == 'train':
+        #ファイルもってくる&シャッフルする
+        import glob
+        files = glob.glob('../cefrj/original/**/*.raw')
+        shuf_list = random.sample(files, len(files))
+        x = []
+        y = []
+        for dat in shuf_list:
+            print(dat)
+            data = ''
+            with open(dat,'r') as f:
+                for i in f:
+                    data += i.rstrip() + ' '
 
-    surface = Surface(unicode(data))
-    ngram, stats, diff = surface.features()
-    grmitem = GrmItem(unicode(data))
-    grm, pos_ngram, use_list = grmitem.features()
-    inputs = Feature(ngram=ngram, pos_ngram=pos_ngram, grmitem=grm, word_difficulty=diff, stats=stats).concat()
-    clf = mord.LogisticAT(alpha=0.01)
-    clf = joblib.load("./model/train.pkl")
-    grade = clf.predict(inputs)
-    print(output(grade, stats,  diff, use_list))
+            #surface = Surface(unicode(data))
+            surface = Surface(str(data))
+            ngram, stats, diff = surface.features()
+            #grmitem = GrmItem(unicode(data))
+            grmitem = GrmItem(str(data))
+            grm, pos_ngram, use_list = grmitem.features()
+            inputs = Feature(ngram=ngram, pos_ngram=pos_ngram, grmitem=grm, word_difficulty=diff, stats=stats).concat()
+            x.append(inputs)
+            if 'A1' in dat:
+                y.append(1)
+            elif 'A2' in dat:
+                y.append(2)
+            elif 'B1' in dat:
+                y.append(3)
 
+        input_x = np.array(x)
+        input_y = np.array(y)
+        print(input_x.shape)
+        print(input_y.shape)
+
+        #学習
+        clf = mord.LogisticAT(alpha=0.01)
+        clf.fit(input_x, input_y)
+
+        #モデル書き出し
+        joblib.dump(clf, open(args.OUT, 'wb'))
+
+    elif args.MODE == 'test':
+        #データ読み込み
+        data = ''
+        with open(args.INPUT,'r') as f:
+            for i in f:
+                data += i.rstrip() + ' '
+
+        #素性作成
+        #surface = Surface(unicode(data))
+        surface = Surface(str(data))
+        ngram, stats, diff = surface.features()
+        #grmitem = GrmItem(unicode(data))
+        grmitem = GrmItem(str(data))
+        grm, pos_ngram, grm_freq = grmitem.features()
+        inputs = Feature(ngram=ngram, pos_ngram=pos_ngram, grmitem=grm, word_difficulty=diff, stats=stats).concat()
+
+        #モデル読み込み
+        clf = joblib.load("./test.pkl")
+        grade = clf.predict(inputs)
+        print(output(grade, stats, diff, grm_freq))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input', help='input data')
+    parser.add_argument('-m', '--MODE', required=True, choices=['train', 'test'])
+    parser.add_argument('-o', '--OUT')
+    parser.add_argument('-i', '--INPUT')
     args = parser.parse_args()
-    main()
+    main(args)
