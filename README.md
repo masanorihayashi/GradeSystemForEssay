@@ -1,9 +1,9 @@
 # GradeSystemForEssay
 
 # データについて
-## エッセイ（学習者が書いた作文）は以下にある(github上に置くのはまずいので）
+## エッセイ（学習者が書いた作文）は以下
 
-- A1, A2, B1の三段階
+- A1, A2, B1の3段階
 
 `/home/lr/hayashi/github/GradeSystemForEssay/cefrj`
 
@@ -15,7 +15,19 @@
 
 ## textbook
 
-- aaaa
+- A1, A2, B1, B2, C1, C2の6段階
+
+`/home/lr/hayashi/github/GradeSystemForEssay/textbook`
+
+以下の各ディレクトリの説明
+
+- `/raw_xml/` textbookそれぞれ（全部で96冊分？）のxmlデータ
+
+- `/raw/` `/raw_xml/`内のデータをパースしてテキスト抽出したデータ
+
+- `/10_instance/[raw, raw_xml]/` textbookを10文ずつ分割して，作成したもの
+
+
 
 # プログラムの動かし方
 
