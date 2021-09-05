@@ -12,10 +12,13 @@ from sklearn.externals import joblib
 
 import mord
 import treetaggerwrapper
+from bs4 import BeautifulSoup as bs
 
 
 import nltk
 from nltk.tokenize import sent_tokenize
+from nltk import word_tokenize as wt
+from nltk import pos_tag
 from collections import Counter
 from collections import OrderedDict
 from sklearn.externals import joblib
@@ -44,6 +47,12 @@ with open(a1) as fa1, open(a2) as fa2, open(b1) as fb1, open(fun) as ffn:
     for funw in ffn:
         fun_words.append(funw.lower().split()[0])
         diff_words.append(funw.lower().split()[0])
+
+#機能語読み込み
+function_dic = {}
+func = open("../dat/func.word","r")
+for num, i in enumerate(func.readlines()):
+    function_dic[str(i.rstrip())] = str(num+1)
 
 class Surface:
     def __init__(self, text):
@@ -236,6 +245,171 @@ def output(grade, stats, word_diff, grmitem):
 
     return output_dic
 
+#xmlデータから入力，出力，アライメント情報を抽出
+def extract_dp_sentence(xml):
+    dp_sentence = []
+    ori_sentence = []
+    correct_sentence = []
+    tmp_line = ""
+    tmp_corrected = ""
+    for line_ in xml:
+        line = line_.rstrip()
+        if tmp_line == '<trial no="01a">':
+            dp_sentence.append(line)
+            tmp_line = line.rstrip()
+        elif tmp_line == '<sentence psn="ns">':
+            ori_sentence.append(line)
+            tmp_line = line.rstrip()
+        elif tmp_line == '<sentence psn="st">':
+            correct_sentence.append(line)
+            tmp_line = line.rstrip()
+        else:
+            tmp_line = line.rstrip()
+
+    return dp_sentence, ori_sentence, correct_sentence
+
+#alignedデータから3種類のタグ抽出
+def parse_dp(dp_sentence):
+    add_list = []
+    msf_list = []
+    oms_list = []
+
+    fix_dp = dp_sentence.replace('<msf crr', '<msfcrr')
+    re_add = re.findall('<add>[a-z]+</add>', fix_dp)
+    re_msf = re.findall('<msfcrr[a-z"=>]+</msf>', fix_dp)
+    re_oms = re.findall('<oms>[a-z]+</oms>', fix_dp)
+
+    return re_add, re_msf, re_oms, fix_dp
+
+pos_list = ["CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS",\
+        "LS", "MD", "NN", "NNS", "NNP", "NNPS", "PDT", "POS", "PRP",\
+        "PRP$", "RB", "RBR", "RBS", "RP", "SYM", "TO", "UH", "VB",\
+        "VBD", "VBG", "VBN", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB"]
+
+posa_dic = {}
+for num, pos in enumerate(pos_list):
+    posa_dic[pos] = num+1
+#置換，脱落，余剰の操作抽出（内容語なら品詞，機能語なら単語）
+#まずアライメントの情報を持ってきてからここに入れている
+#POSはtreetaggerのposリストから
+def detect_operate_pos(ori_sen, gec_sen, add, msf, oms, pos_dic, dp_sen):
+    '''
+    tagger = treetaggerwrapper.TreeTagger(TAGLANG='en',TAGDIR='/home/lr/hayashi/ra_web_app')
+    # [単語\t品詞\t原形, .... のような形式]
+    # item.split('\t')[0] -> 単語
+    # item.split('\t')[1] -> 品詞
+    ori_tagged = tagger.TagText(ori_sen)
+    gec_tagged = tagger.TagText(gec_sen)
+
+    ori_sen_list = ori_sen.split()
+    gec_sen_list = gec_sen.split()
+
+    ori_pos_list = [x.split('\t')[1] for x in ori_tagged]
+    gec_pos_list = [x.split('\t')[1] for x in gec_tagged]
+    '''
+    #nltkのタガーで
+    ori_tagged = pos_tag(wt(ori_sen))
+    gec_tagged = pos_tag(wt(gec_sen))
+    #print(www)
+    ori_sen_list = ori_sen.split()
+    gec_sen_list = gec_sen.split()
+    ori_pos_list = [x[1] for x in ori_tagged]
+    gec_pos_list = [x[1] for x in gec_tagged]
+
+    add_pos = []
+    msf_pos = []
+    oms_pos = []
+    add_words = []
+    msf_words = []
+    oms_words = []
+    operation_word = []
+    #更新が必要
+
+    function_list = ["CC", "DT", "EX", "IN", "MD", "PDT", "POS", "PRP", \
+                   "PRP$", "RP", "TO", "WDT", "WP", "WP$", "WRB"]
+
+
+    #add/msf/oms_word = タグ付き<add>xxx</add>
+    #中身と単語を特定（機能語なら単語，内容語なら品詞）したい
+    #add:gec後の文章から抽出する
+
+
+    ori_w_tag = []
+    gec_w_tag = []
+    for word in dp_sen.split():
+        if '<add>' in word:
+            gec_w_tag.append(word)
+        elif '<oms>' in word:
+            ori_w_tag.append(word)
+        elif '<msrcrr' in word:
+            ori_w_tag.append(word)
+            gec_w_tag.append(word)
+        else:
+            ori_w_tag.append(word)
+            gec_w_tag.append(word)
+
+    for ori_word, ori_tag_word, ori_pos in zip(ori_sen_list, ori_w_tag, ori_pos_list):
+        print(ori_word, ori_tag_word, ori_pos)
+       # for add_word in add:
+       #     print(add_word)
+            #単語のマッチ
+            #for pos, word in zip(gec_pos_list, gec_sen_list):
+            #    print(pos, word, add_word)
+
+
+
+
+    '''
+            for gec_pos in gec_pos_list:
+                if add_word.string == gec_pos[0]:
+                    if gec_pos[1] == ".":
+                        pass
+                    elif gec_pos[1] not in pos_dic.keys():
+                        add_pos.append("OTHER")
+                    elif gec_pos[1] in function_list:
+                        add_words.append(str(gec_pos[0].lower()))
+                    else:
+                        add_pos.append(gec_pos[1])
+                        operation_word.append(str(gec_pos[0]))
+        print(add_pos)
+        print(add_words)
+        print(operation_word)
+
+    '''
+    '''
+    if len(msf) != 0:
+        for msf_word in msf:
+            #cor_pos_list
+            for cor_pos in cor_pos_list:
+                if msf_word.string == cor_pos[0]:
+                    if cor_pos[1] == ".":
+                        pass
+                    elif cor_pos[1] not in pos_dic.keys():
+                        msf_pos.append("OTHER")
+                    elif cor_pos[1] in function_list:
+                        msf_words.append(str(cor_pos[0].lower()))
+                    else:
+                        msf_pos.append(cor_pos[1])
+                        operation_word.append(str(cor_pos[0]))
+
+    if len(oms) != 0:
+        for oms_word in oms:
+            #ori_pos_list
+            for ori_pos in ori_pos_list:
+                if oms_word.string == ori_pos[0]:
+                    if ori_pos[1] == ".":
+                        pass
+                    elif ori_pos[1] not in pos_dic.keys():
+                        oms_pos.append("OTHER")
+                    elif ori_pos[1] in function_list:
+                        oms_words.append(str(ori_pos[0].lower()))
+                    else:
+                        oms_pos.append(ori_pos[1])
+                        operation_word.append(str(ori_pos[0]))
+    return add_pos, msf_pos, oms_pos, operation_word, ori_pos_list, \
+            add_words, msf_words, oms_words
+    '''
+
 def main(args):
 
     if args.MODE == 'train':
@@ -279,6 +453,74 @@ def main(args):
         #モデル書き出し
         joblib.dump(clf, open(args.OUT, 'wb'))
 
+    elif args.MODE == 'train_gec':
+        #ファイルもってくる&シャッフルする
+        #xmlファイルからもってくる
+        import glob
+        files = glob.glob('../cefrj/original_gec_pairs_xml/**/*.out')
+        shuf_list = random.sample(files, len(files))
+        x = []
+        y = []
+
+        #xmlデータ読み込み（入力，出力，アライメント結果）
+        for dat in shuf_list:
+            print(dat)
+            with open(dat,'r') as f_xml:
+                 aligned, original, gec_out = extract_dp_sentence(f_xml)
+
+            '''
+            #入力文に対しての処理
+            original_text = ''
+            for text in original:
+                original_text += text.rstrip() + ' '
+
+            surface = Surface(str(original_text))
+            ngram, stats, diff = surface.features()
+            grmitem = GrmItem(str(original_text))
+            grm, pos_ngram, use_list = grmitem.features()
+
+            #出力文に対しての処理
+            gec_text = ''
+            for text in gec_out:
+                gec_text += text.rstrip()  + ' '
+            grmitem_gec = GrmItem(str(gec_text))
+            grm_gec, pos_ngram2_gec,  use_list_gec = grmitem_gec.features()
+            print(grm_gec)
+            #print(len(use_list))
+            #print(len(use_list2))
+            '''
+            #置換，脱落，余剰検出
+            aligned_text = ''
+            #for text in aligned:
+            #    aligned_text += text.rstrip() + ' '
+            for o, g, a in zip(original, gec_out, aligned):
+                add, msf, oms, dp_sen = parse_dp(a)
+                detect_operate_pos(o, g, add, msf, oms, posa_dic, dp_sen)
+
+
+        '''
+            inputs = Feature(ngram=ngram, pos_ngram=pos_ngram, grmitem=grm, word_difficulty=diff, stats=stats).concat()
+            x.append(inputs)
+            if 'A1' in dat:
+                y.append(1)
+            elif 'A2' in dat:
+                y.append(2)
+            elif 'B1' in dat:
+                y.append(3)
+
+        input_x = np.array(x)
+        input_y = np.array(y)
+        print(input_x.shape)
+        print(input_y.shape)
+
+        #学習
+        clf = mord.LogisticAT(alpha=0.01)
+        clf.fit(input_x, input_y)
+
+        #モデル書き出し
+        joblib.dump(clf, open(args.OUT, 'wb'))
+        '''
+
     elif args.MODE == 'test':
         #データ読み込み
         data = ''
@@ -302,7 +544,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--MODE', required=True, choices=['train', 'test'])
+    parser.add_argument('-m', '--MODE', required=True, choices=['train', 'train_gec', 'test'])
     parser.add_argument('-o', '--OUT')
     parser.add_argument('-i', '--INPUT')
     args = parser.parse_args()
